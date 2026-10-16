@@ -20,6 +20,11 @@ class Config:
     start: str = "2000-01-01"
     end: str = ""
 
+    # Data quality: |daily return| above this is treated as a corporate-action
+    # artifact (e.g. a demerger/split adjustment glitch) rather than a real
+    # move, and is excluded from the return series. Set to 0 to disable.
+    max_abs_return: float = 0.50
+
     # Trend features
     fast_ma: int = 20
     slow_ma: int = 50

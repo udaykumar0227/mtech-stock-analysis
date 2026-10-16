@@ -141,6 +141,10 @@ def build_summary(
         lines += ["## 0. Instrument history", "",
                   format_profile(ticker, company, profile), ""]
 
+    # Data-cleaning disclosure, recorded by add_indicators.
+    n_out = int(frame.attrs.get("n_return_outliers", 0) or 0)
+    threshold = float(frame.attrs.get("max_abs_return", 0.0) or 0.0)
+
     lines += [
         "## 1. Method and settings",
         "",
@@ -151,6 +155,14 @@ def build_summary(
         f"- **High-volatility cutoff:** {cfg.vol_high_pct:.0%} percentile "
         f"of {cfg.vol_window}-day realised volatility",
         f"- **Round-trip cost:** {cfg.cost_bps:.1f} bps per position change",
+    ]
+    if n_out > 0:
+        lines.append(
+            f"- **Data cleaning:** {n_out} anomalous daily return(s) "
+            f"(|return| > {threshold:.0%}) excluded as likely "
+            f"corporate-action artifacts (demerger/split adjustments)."
+        )
+    lines += [
         "",
         "## 2. Market-style breakdown",
         "",

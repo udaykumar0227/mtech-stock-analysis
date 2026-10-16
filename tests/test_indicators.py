@@ -98,5 +98,35 @@ class TestPipeline(unittest.TestCase):
         self.assertLessEqual(metrics["max_drawdown"], 0.0)
 
 
+class TestReturnOutlierGuard(unittest.TestCase):
+    """The corporate-action artifact guard (Reliance 2005 demerger case)."""
+
+    def _frame_with_jump(self, factor: float = 5.0) -> pd.DataFrame:
+        frame = synthetic_ohlcv(days=300, seed=3)
+        i = 150
+        frame.iloc[i, frame.columns.get_loc("close")] *= factor
+        return frame
+
+    def test_outlier_is_flagged_and_masked(self):
+        cfg = Config()
+        out = add_indicators(self._frame_with_jump(), cfg)
+        self.assertGreaterEqual(out.attrs.get("n_return_outliers", 0), 1)
+        # No return above the threshold survives.
+        self.assertLessEqual(float(out["returns"].abs().max()), cfg.max_abs_return)
+
+    def test_outlier_inflates_vol_when_guard_disabled(self):
+        frame = self._frame_with_jump()
+        guarded = add_indicators(frame, Config(max_abs_return=0.50))
+        unguarded = add_indicators(frame, Config(max_abs_return=0.0))
+        self.assertEqual(unguarded.attrs["n_return_outliers"], 0)
+        self.assertGreater(
+            float(unguarded["vol"].max()), float(guarded["vol"].max())
+        )
+
+    def test_guard_is_disabled_by_zero(self):
+        out = add_indicators(self._frame_with_jump(), Config(max_abs_return=0.0))
+        self.assertEqual(out.attrs["n_return_outliers"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

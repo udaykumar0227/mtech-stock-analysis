@@ -6,3 +6,6 @@ data/processed/*
 *.egg-info/
 .pytest_cache/
 .coverage
+
+# Generated analysis output (regenerate with: python main.py --ticker ... --out docs/<name>_output)
+docs/*_output/

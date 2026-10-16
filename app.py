@@ -56,7 +56,10 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Selection")
-        choice = st.selectbox("Stock", options, index=options and 0)
+        choice = st.selectbox("Stock", options, index=0) if options else None
+        if choice is None:
+            st.error("No companies found in data/reference/nse_companies.csv")
+            return
         symbol = str(companies.iloc[options.index(choice)]["symbol"])
         start = st.text_input("History from", "2015-01-01")
         end = st.text_input("History to (blank = today)", "")
@@ -80,7 +83,11 @@ def main() -> None:
         return
 
     company = find_company(symbol, companies)
-    profile = history_summary(raw, company)
+    profile: dict = {}
+    try:
+        profile = history_summary(raw, company)
+    except ValueError as exc:
+        st.warning(f"Could not build the history profile: {exc}")
 
     cfg = Config(start=start, end=end, cost_bps=float(cost))
     frame = generate(classify(add_indicators(raw, cfg), cfg), cfg)
@@ -88,18 +95,18 @@ def main() -> None:
     metrics = result["metrics"]
 
     # --- Headline profile --------------------------------------------------- #
-    render_profile(symbol, company, profile)
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Current close", f"\u20b9{profile['last_close']:,.2f}",
-              f"{100 * (profile['last_close'] / profile['first_close'] - 1):+.1f}% "
-              "over available data")
-    c2.metric("All-time high", f"\u20b9{profile['all_time_high']:,.2f}",
-              str(pd.Timestamp(profile['all_time_high_date']).date()))
-    c3.metric("52-week low", f"\u20b9{profile['low_52w']:,.2f}")
-    years = profile.get("years_since_listing")
-    c4.metric("Listed for", f"{years:.1f} years" if years else "n/a")
-    st.divider()
+    if profile:
+        render_profile(symbol, company, profile)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Current close", f"\u20b9{profile['last_close']:,.2f}",
+                  f"{100 * (profile['last_close'] / profile['first_close'] - 1):+.1f}% "
+                  "over available data")
+        c2.metric("All-time high", f"\u20b9{profile['all_time_high']:,.2f}",
+                  str(pd.Timestamp(profile['all_time_high_date']).date()))
+        c3.metric("52-week low", f"\u20b9{profile['low_52w']:,.2f}")
+        years = profile.get("years_since_listing")
+        c4.metric("Listed for", f"{years:.1f} years" if years else "n/a")
+        st.divider()
 
     # --- Charts ------------------------------------------------------------- #
     left, right = st.columns([3, 2])
@@ -119,20 +126,44 @@ def main() -> None:
         st.bar_chart(mix, height=300)
 
         st.subheader("Signal activity")
-        st.dataframe(signal_stats(frame), use_container_width=True)
+        st.dataframe(signal_stats(frame), width="stretch")
 
         st.subheader("Performance")
         table = pd.DataFrame(metrics).T
-        st.dataframe(table, use_container_width=True)
+        st.dataframe(table, width="stretch")
 
     st.divider()
     st.subheader("Latest readings")
     cols = ["close", "trend_state", "vol_state", "regime", "rsi",
             "macd_hist", "signal", "strategy"]
-    st.dataframe(frame[cols].tail(15).iloc[::-1], use_container_width=True)
+    st.dataframe(frame[cols].tail(15).iloc[::-1], width="stretch")
 
     with st.expander("Show processed data"):
-        st.dataframe(frame.tail(200), use_container_width=True)
+        st.dataframe(frame.tail(200), width="stretch")
+
+    st.download_button(
+        "Download processed CSV",
+        frame.to_csv().encode("utf-8"),
+        file_name=f"{symbol}_processed.csv",
+        mime="text/csv",
+    )
+
+    with st.expander("About this project"):
+        st.markdown(
+            "**M.Tech Data Science project.** The pipeline engineers trend, "
+            "momentum and volatility features, classifies each day into a "
+            "market style (trend \u00d7 volatility), generates strategy inputs "
+            "matched to that style, and back-tests them against buy-and-hold "
+            "with transaction costs.\n\n"
+            "Trend is measured as the normalised fast/slow moving-average "
+            "spread confirmed by MACD; volatility as the percentile rank of "
+            "realised volatility, so 'high volatility' is relative to the "
+            "stock's own history.\n\n"
+            "IPO and listing dates come from the hand-maintained "
+            "`data/reference/nse_companies.csv`, not from the market API. "
+            "Positions are lagged one bar to avoid look-ahead bias.\n\n"
+            "*Academic exercise only \u2014 not financial advice.*"
+        )
 
 
 if __name__ == "__main__":

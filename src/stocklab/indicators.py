@@ -133,7 +133,18 @@ def add_indicators(frame: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     df = frame.copy()
     close = df["close"]
 
-    df["returns"] = close.pct_change()
+    # Returns, with a guard against corporate-action artifacts. A single
+    # unadjusted demerger/split row (e.g. +337% then -77%) otherwise inflates
+    # volatility and drawdown for the whole sample. Masked, not dropped, so
+    # the index stays aligned; the count is recorded for disclosure.
+    returns = close.pct_change()
+    threshold = float(getattr(cfg, "max_abs_return", 0.0) or 0.0)
+    n_outliers = 0
+    if threshold > 0:
+        bad = returns.abs() > threshold
+        n_outliers = int(bad.sum())
+        returns = returns.mask(bad)
+    df["returns"] = returns
     df["log_returns"] = np.log(close).diff()
 
     df["sma_fast"] = sma(close, cfg.fast_ma)
@@ -153,5 +164,9 @@ def add_indicators(frame: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     # Normalised fast/slow separation: dimensionless, so one threshold works
     # across different price levels.
     df["trend_strength"] = (df["sma_fast"] - df["sma_slow"]) / df["sma_slow"]
+
+    # Records for downstream disclosure (set last: join() returns a new frame).
+    df.attrs["n_return_outliers"] = n_outliers
+    df.attrs["max_abs_return"] = threshold
 
     return df

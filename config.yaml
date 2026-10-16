@@ -5,6 +5,11 @@ ticker: RELIANCE.NS
 start: "2000-01-01"
 end: ""
 
+# Data quality: |daily return| above this fraction is treated as a
+# corporate-action artifact (demerger/split adjustment glitch) and excluded
+# from the return series. Set to 0 to disable the guard.
+max_abs_return: 0.50
+
 # Trend features
 fast_ma: 20
 slow_ma: 50
