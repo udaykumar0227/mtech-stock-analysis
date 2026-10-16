@@ -1,0 +1,4 @@
+# Optional web UI for the project.
+# Install with:  pip install -r requirements-ui.txt
+# Run with:      streamlit run app.py
+streamlit>=1.30

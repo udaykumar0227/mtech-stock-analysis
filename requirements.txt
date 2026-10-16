@@ -1,0 +1,9 @@
+# Core data-science stack
+pandas>=2.0
+numpy>=1.24
+
+# Optional live data source (only needed for --ticker mode)
+yfinance>=0.2.40
+
+# Config parsing / testing helpers
+PyYAML>=6.0

@@ -1,0 +1,36 @@
+# Tunable parameters for the market-style analyser.
+# Every field maps to an attribute of stocklab.config.Config.
+
+ticker: RELIANCE.NS
+start: "2000-01-01"
+end: ""
+
+# Trend features
+fast_ma: 20
+slow_ma: 50
+macd_fast: 12
+macd_slow: 26
+macd_signal: 9
+
+# Momentum / mean-reversion features
+rsi_period: 14
+bb_window: 20
+bb_std: 2.0
+
+# Volatility features
+atr_period: 14
+vol_window: 20
+
+# Regime decision thresholds
+trend_threshold: 0.005   # |fast-slow|/slow above this counts as a trend
+vol_high_pct: 0.70       # volatility percentile above this = high-vol regime
+
+# Signal operating points
+rsi_oversold: 30.0
+rsi_overbought: 70.0
+high_vol_size: 0.5       # position scaling applied in high-vol regimes
+
+# Back-test assumptions
+cost_bps: 5.0            # round-trip-ish cost charged per position change
+init_cash: 100000.0
+trading_days: 252
