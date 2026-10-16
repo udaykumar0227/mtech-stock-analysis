@@ -34,11 +34,34 @@ inspect its history.
 | 12 | Back-test engine + metrics | `src/stocklab/backtest.py` | Done |
 | 13 | Auto research summary | `src/stocklab/report.py` | Done |
 | 14 | CLI (`--list`, `--select`, `--profile-only`) | `src/stocklab/cli.py` | Done |
-| 15 | Streamlit web UI | `app.py` | Done, runs |
-| 16 | NSE reference dataset (28 companies) | `data/reference/nse_companies.csv` | Done |
-| 17 | Unit tests | `tests/` | Done — **29/29 pass** |
-| 18 | M.Tech report / title page | `docs/report.md` | Done |
-| 19 | GitHub repository + push | remote `origin` | Done |
+| 15 | Streamlit web UI (colour-coded redesign) | `app.py` | Done, serves HTTP 200 |
+| 16 | App theme (violet accent, light, headless) | `.streamlit/config.toml` | Done |
+| 17 | NSE reference dataset (28 companies) | `data/reference/nse_companies.csv` | Done |
+| 18 | Unit tests | `tests/` | Done — **29/29 pass** |
+| 19 | M.Tech report / title page | `docs/report.md` | Done |
+| 20 | GitHub repository + push | remote `origin` | Done |
+
+### 2.1 Web app — presentation layer
+
+The Streamlit page was rebuilt so the analysis reads at a glance rather than
+as a wall of plain tables:
+
+- **Hero banner** — violet→blue→teal gradient carrying the company, sector,
+  date span, live price with a green/red direction arrow, and the current
+  market-style badge.
+- **Colour-coded stat cards** — value and top border turn green/red by sign
+  (all-time high, 52-week range, CAGR, strategy Sharpe).
+- **Market-style timeline** — an Altair band chart painting the *entire*
+  history in the six regime colours, with legend and hover tooltips.
+- **Regime mix** — horizontal bars keyed to each regime's own colour, plus
+  coloured chips in the breakdown table.
+- **Charts** — regime-coloured price chart, strategy (violet) vs buy-and-hold
+  (coral) equity curve, and a two-line drawdown comparison.
+- **Sidebar** — gradient header, six one-click quick picks, advanced settings
+  (dates, cost) tucked into an expander.
+- **Onboarding** — emoji-labelled tabs, explainer tiles on the landing page,
+  a spinner while fetching, actionable error text, and the SEBI long-only note
+  stated up front.
 
 ## 3. How the pipeline works
 
@@ -82,9 +105,11 @@ virtual environment (`.venv`) — no system changes, no `sudo` required.
 | Packages | pandas 3.0.6, numpy 2.5.4, PyYAML 6.0.3, yfinance 1.7.0, streamlit 1.66.0 |
 | Pipeline (synthetic) | ✅ runs end-to-end |
 | Pipeline (live NSE) | ✅ 26.8 years of RELIANCE.NS |
-| Interactive web app | ✅ serves at http://localhost:8501 |
+| Interactive web app | ✅ serves at http://localhost:8501 (root 200, `/_stcore/health` = `ok`) |
+| Web app (headless) | ✅ `streamlit.testing.AppTest` on the real app — 0 exceptions, 4 tabs, 4 dataframes, 5 charts |
 | Unit tests | ✅ **29 / 29 pass** |
 | Reference list validation | ✅ 28 symbols checked; 2 dead tickers found and fixed |
+| Reproducibility | ✅ re-run of RELIANCE.NS reproduced the same figures to the basis point |
 
 > `sudo dnf install python3-pip` was not usable (no terminal for the password
 > prompt). The `ensurepip` + `venv` route achieves the same result without root.
@@ -118,6 +143,11 @@ not a defect — and it makes the parameter sweep the key next experiment.
    to **74%**, and made the strategy appear profitable when it was not
    (+58.87% became −40.24% once corrected). Guard added via `max_abs_return`,
    with the excluded count disclosed in the report.
+4. **Broken performance-tab verdict.** The UI verdict string was assembled
+   with a leftover `walrus :=` / `.replace("100%", "")` expression that printed
+   a nonsense percentage. It now derives the real invested-day exposure from
+   the back-test's `position_applied` column. Also dropped a dead fourth field
+   from the metric-row table.
 
 ## 8. Known limitations
 
