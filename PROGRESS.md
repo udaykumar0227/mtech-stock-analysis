@@ -2,128 +2,142 @@
 
 **Project:** Market-Style Aware Stock Analyser
 **Degree:** M.Tech — Data Science
-**Report date:** 2026-10-17
+**Last updated:** 2026-10-17
 **Location:** `/home/uday/Documents/mtech-stock-analysis/`
+**Repository:** https://github.com/udaykumar0227/mtech-stock-analysis
 
 ---
 
 ## 1. Objective
 
-Build a data-science pipeline that analyses a stock's price history, identifies
-the prevailing **market style (regime)** — trending up, trending down, sideways,
-and high/low volatility — and emits rule-based **trading inputs** matched to
-that regime, with an objective back-test to measure their quality.
+Build a data-science pipeline that analyses an Indian stock's price history,
+identifies the prevailing **market style / regime** (trending up, trending
+down, sideways; high or low volatility), and emits rule-based **trading inputs**
+matched to that regime — with an interactive web app to select a stock and
+inspect its history.
 
 ## 2. Work completed
-
-The full project scaffold and implementation are in place.
 
 | # | Area | File | Status |
 |---|------|------|--------|
 | 1 | Project overview, layout, usage | `README.md` | Done |
-| 2 | Dependencies | `requirements.txt` | Done |
+| 2 | Dependencies | `requirements.txt`, `requirements-ui.txt` | Done |
 | 3 | Tunable parameters | `config.yaml` | Done |
 | 4 | VCS hygiene | `.gitignore` | Done |
 | 5 | Entry point | `main.py` | Done |
 | 6 | Config dataclass + YAML loader | `src/stocklab/config.py` | Done |
 | 7 | Data ingestion (CSV / yfinance / synthetic) | `src/stocklab/loader.py` | Done |
-| 8 | Indicator library | `src/stocklab/indicators.py` | Done |
+| 8 | Indicator library + data-quality guard | `src/stocklab/indicators.py` | Done |
 | 9 | Market-style classification | `src/stocklab/regime.py` | Done |
-| 10 | Regime-conditioned signals | `src/stocklab/signals.py` | Done |
-| 11 | Back-test engine + metrics | `src/stocklab/backtest.py` | Done |
-| 12 | Auto research summary | `src/stocklab/report.py` | Done |
-| 13 | Command-line interface | `src/stocklab/cli.py` | Done |
-| 14 | Unit tests | `tests/test_indicators.py` | Done — 10/10 pass |
-| 15 | M.Tech report / title page | `docs/report.md` | Done |
-| 16 | Notebook workspace notes | `notebooks/README.md` | Done |
+| 10 | Regime-conditioned signals (long-only) | `src/stocklab/signals.py` | Done |
+| 11 | Reference data + history profiling | `src/stocklab/company.py` | Done |
+| 12 | Back-test engine + metrics | `src/stocklab/backtest.py` | Done |
+| 13 | Auto research summary | `src/stocklab/report.py` | Done |
+| 14 | CLI (`--list`, `--select`, `--profile-only`) | `src/stocklab/cli.py` | Done |
+| 15 | Streamlit web UI | `app.py` | Done, runs |
+| 16 | NSE reference dataset (28 companies) | `data/reference/nse_companies.csv` | Done |
+| 17 | Unit tests | `tests/` | Done — **29/29 pass** |
+| 18 | M.Tech report / title page | `docs/report.md` | Done |
+| 19 | GitHub repository + push | remote `origin` | Done |
 
 ## 3. How the pipeline works
 
 1. **Ingest** — normalise OHLCV data to a clean, sorted, duplicate-free
    `DatetimeIndex` frame.
-2. **Feature engineering** — returns, SMA/EMA, MACD, RSI, ATR, Bollinger bands,
-   realised volatility and its rolling percentile rank.
-3. **Classify market style** — combine the normalised fast/slow MA spread
+2. **Clean** — mask daily returns above `max_abs_return` as likely
+   corporate-action artifacts, recording the count for disclosure.
+3. **Feature engineering** — returns, SMA/EMA, MACD, RSI, ATR, Bollinger
+   bands, realised volatility and its rolling percentile rank.
+4. **Classify market style** — combine the normalised fast/slow MA spread
    (trend axis) with the volatility percentile (volatility axis) into labels
    such as `up_trend_low_vol` or `sideways_high_vol`.
-4. **Generate signals** — momentum in trends, mean-reversion in quiet ranges,
-   and position de-risking (halved size) in high-volatility regimes.
-5. **Back-test** — one-bar-lagged positions, basis-point transaction costs,
+5. **Generate signals** — momentum in uptrends, mean-reversion in quiet
+   ranges, and position de-risking (halved size) in high-volatility regimes.
+   Long-only by default.
+6. **Back-test** — one-bar-lagged positions, basis-point transaction costs,
    then CAGR, annualised volatility, Sharpe, Sortino, max drawdown and hit rate
    versus buy-and-hold.
-6. **Report** — a markdown summary of the regime mix, signal activity and
-   relative performance.
+7. **Report** — a markdown summary whose interpretation is generated from the
+   actual numbers, never templated.
 
-## 4. Key design decisions
+## 4. Key decisions
 
-- **Stock-relative volatility.** "High volatility" is a *percentile rank*
-  within a trailing window, so one threshold works across instruments rather
-  than an absolute number tuned to a single price scale.
-- **No look-ahead bias.** The position decided at close *t* is applied to
-  *t+1*'s return.
-- **Costs modelled.** Every position change is charged basis points, so
-  churn-heavy strategies are penalised.
-- **Offline demo path.** A synthetic multi-regime generator lets the whole
-  pipeline run and be demonstrated with no network access.
-- **Separation of concerns.** Pure indicator functions and a thin CLI make the
-  logic importable from notebooks and unit-testable.
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | **Rule-based, no ML** | Regime labelling by economic definition (trend × volatility) is deliberate and interpretable; success is judged by back-test performance, not prediction accuracy |
+| 2 | **Indian equities (NSE/BSE)** | NSE symbols via `.NS` suffix; curated NSE reference list |
+| 3 | **Long-only** (`allow_short: false`) | SEBI does not permit retail short-selling for delivery, so a long/short strategy would not be executable |
+| 4 | **Stock-relative volatility** | Percentile rank means one threshold works across instruments |
+| 5 | **Disclose, don't hide** | Excluded anomalous returns are reported in the method section |
 
 ## 5. Environment and verification
 
-**Verified on 2026-10-17.** Dependencies were installed into a project-local
+**Verified on 2026-10-17.** Dependencies installed into a project-local
 virtual environment (`.venv`) — no system changes, no `sudo` required.
 
 | Item | Result |
 |---|---|
-| `pip` bootstrap | `python3 -m ensurepip` → pip 26.0.1 (no sudo needed) |
+| pip bootstrap | `python3 -m ensurepip` → pip 26.0.1 (no sudo needed) |
 | Virtualenv | `.venv/` created with Python 3.14.3 |
-| Packages | pandas 3.0.6, numpy 2.5.4, PyYAML 6.0.3, yfinance 1.7.0 |
-| Pipeline (synthetic, 1,500 days) | ✅ runs end-to-end, writes `docs/demo_output/` |
-| Unit tests | ✅ **10 / 10 pass** (0.04 s) |
+| Packages | pandas 3.0.6, numpy 2.5.4, PyYAML 6.0.3, yfinance 1.7.0, streamlit 1.66.0 |
+| Pipeline (synthetic) | ✅ runs end-to-end |
+| Pipeline (live NSE) | ✅ 26.8 years of RELIANCE.NS |
+| Interactive web app | ✅ serves at http://localhost:8501 |
+| Unit tests | ✅ **29 / 29 pass** |
+| Reference list validation | ✅ 28 symbols checked; 2 dead tickers found and fixed |
 
-> Note: `sudo dnf install python3-pip` was **not** usable here (no terminal for
-> the password prompt). The `ensurepip` + `venv` route achieves the same result
-> without root.
+> `sudo dnf install python3-pip` was not usable (no terminal for the password
+> prompt). The `ensurepip` + `venv` route achieves the same result without root.
 
-### Latest run (synthetic, seed 14, 1,500 days)
+## 6. Latest result (RELIANCE.NS, 2000–2026, 6,680 trading days)
 
 | Metric | Strategy | Buy & hold |
 |---|---:|---:|
-| Total return | 14.51% | 27.62% |
-| Annualised volatility | 10.05% | 18.50% |
-| Sharpe | 0.28 | 0.31 |
-| Max drawdown | −23.41% | −46.30% |
-| Trades | 171 | 1,499 |
+| Total return | +104.27% | +9,057.14% |
+| CAGR | 2.73% | 18.58% |
+| Annualised volatility | **12.22%** | 32.49% |
+| Sharpe | 0.28 | **0.69** |
+| Max drawdown | **−48.46%** | −68.18% |
+| Trades | 416 | — |
 
-**Finding:** on this series the strategy roughly halved volatility and cut
-drawdown (−46% → −23%), but buy-and-hold still won on raw return, because
-long/short rules give up upside in a rising market. This is an honest,
-data-derived result — not a defect.
+**Finding:** the long-only regime strategy roughly halves volatility and cuts
+drawdown, but does **not** beat buy-and-hold on return, because it sits flat
+~76% of the time in a strong uptrend. This is an honest, data-derived result,
+not a defect — and it makes the parameter sweep the key next experiment.
 
-### Issue found and fixed during verification
+## 7. Bugs found and fixed
 
-The report's Interpretation section was originally **hard-coded** to claim a
-positive strategy Sharpe, which the real numbers contradicted. It is now
-generated conditionally from the actual metrics in
-`report._interpretation()`, so the narrative can never contradict the tables.
+1. **Hard-coded report narrative.** The Interpretation section asserted a
+   positive strategy Sharpe regardless of the data. Now generated
+   conditionally from the actual metrics (`report._interpretation`).
+2. **Dead tickers after corporate renames.** `ZOMATO.NS` → `ETERNAL.NS`
+   (Apr 2025) and `TATAMOTORS.NS` → `TMPV.NS` (Oct 2025) returned no data.
+   Fixed in the reference file, with space-insensitive legacy-name fallback.
+3. **Corporate-action artifacts.** Two unadjusted rows in Reliance's 2005
+   history (+337.48%, −76.99%) inflated annual volatility from a true **32%**
+   to **74%**, and made the strategy appear profitable when it was not
+   (+58.87% became −40.24% once corrected). Guard added via `max_abs_return`,
+   with the excluded count disclosed in the report.
 
-### Remaining limitation
+## 8. Known limitations
 
-- `--ticker` mode (yfinance) has not been exercised; it needs internet and a
-  valid symbol. `--csv` and `--synthetic` are fully working.
+- `docs/report.md` is a template — the dissertation chapters are not written.
+- The parameter defaults are untuned; no hyper-parameter sweep yet.
+- The reference list covers 28 large-caps only, and its IPO dates are
+  indicative, not authoritative.
+- Analysis notebooks are planned but not yet written.
+- The Streamlit app requires the terminal to stay open while running.
 
-## 6. Suggested next steps
+## 9. Suggested next steps
 
-1. ✅ ~~Install dependencies and run a smoke-test~~ — done (see Section 5).
-2. ✅ ~~Run the unit tests~~ — done, 10/10 pass.
-3. Load a real ticker (via `--csv` or `--ticker`) and record baseline metrics.
-4. Add a hyper-parameter sweep over `fast_ma`, `slow_ma`, `trend_threshold`
-   and `vol_high_pct` — the demo shows results are sensitive to these, so a
-   sweep is the logical next experiment.
-5. Write the analysis notebook in `notebooks/` (exploration + charts).
-6. Fill in the dissertation chapters using `docs/report.md` as the template.
+1. Hyper-parameter sweep over `trend_threshold`, `vol_high_pct`, `fast_ma`,
+   `slow_ma` — the honest result shows the defaults are not optimal.
+2. Portfolio extension: apply across many stocks rather than one at a time.
+3. Write the analysis notebooks (exploration, regime charts, sensitivity heat-map).
+4. Fill in the dissertation chapters using `docs/report.md`.
+5. Consider walk-forward validation to guard against overfitting in the sweep.
 
-## 7. Working agreement
+## 10. Working agreement
 
 Per instruction, the assistant **asks the user for one confirmation before any
 execution** — running commands or writing/editing files in this project.

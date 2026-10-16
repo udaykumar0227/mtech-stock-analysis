@@ -82,6 +82,20 @@ class TestPipeline(unittest.TestCase):
     def test_signals_are_valid(self):
         self.assertTrue(set(self.frame["signal"].unique()) <= {-1, 0, 1})
 
+    def test_default_is_long_only(self):
+        # Default config must not short: SEBI forbids delivery short-selling
+        # for retail investors.
+        self.assertTrue((self.frame["signal"] >= 0).all())
+        self.assertNotIn("momentum_short", set(self.frame["strategy"]))
+        self.assertNotIn("mean_reversion_short", set(self.frame["strategy"]))
+
+    def test_allow_short_produces_short_signals(self):
+        cfg = Config(allow_short=True)
+        raw = synthetic_ohlcv(days=800, seed=42)
+        shortable = generate(classify(add_indicators(raw, cfg), cfg), cfg)
+        self.assertTrue((shortable["signal"] < 0).any())
+        self.assertIn("momentum_short", set(shortable["strategy"]))
+
     def test_multiple_regimes_exist(self):
         self.assertGreater(self.frame["regime"].nunique(), 1)
 

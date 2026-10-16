@@ -6,12 +6,18 @@ recommendation). The mapping encodes well-known market wisdom:
 | Market style            | Strategy family       |
 |-------------------------|-----------------------|
 | Trending up             | Momentum / breakout   |
-| Trending down           | Short momentum        |
-| Sideways + low vol      | Mean-reversion        |
+| Trending down           | Short momentum *      |
+| Sideways + low vol      | Mean-reversion (long) |
+| Sideways + high vol     | Mean-reversion (short) * |
 | Any + high vol          | De-risk (halve size)  |
 
-Outputs a ``signal`` in {-1, 0, +1} (target position: short / flat / long) and
-a continuous ``position`` which applies the high-volatility size scaling.
+\* only when ``cfg.allow_short`` is true. The **default is long-only**
+(``allow_short=False``), producing signals in ``{0, +1}`` — long, hold or exit.
+That is deliberate: SEBI does not permit Indian retail investors to short-sell
+for delivery, so a long/short daily strategy would not be executable.
+
+Outputs a ``signal`` in {0, +1} (or {-1, 0, +1} with shorting enabled) and a
+continuous ``position`` which applies the high-volatility size scaling.
 """
 from __future__ import annotations
 
@@ -29,6 +35,8 @@ def generate(frame: pd.DataFrame, cfg: Config) -> pd.DataFrame:
         if col not in df.columns:
             raise KeyError(f"missing {col!r}; run the pipeline stages first")
 
+    allow_short = bool(getattr(cfg, "allow_short", False))
+
     signal = pd.Series(0, index=df.index, dtype="int64")
     strategy = pd.Series("flat", index=df.index, dtype="string")
 
@@ -41,18 +49,24 @@ def generate(frame: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     signal = signal.mask(long_mom, 1)
     strategy = strategy.mask(long_mom, "momentum_long")
 
-    # --- Short momentum in downtrends --------------------------------------- #
-    short_mom = trend_down & (df["macd_hist"] < 0)
-    signal = signal.mask(short_mom & (signal == 0), -1)
-    strategy = strategy.mask(short_mom & (signal == -1), "momentum_short")
+    # --- Short momentum in downtrends (only if shorting is enabled) --------- #
+    if allow_short:
+        short_mom = trend_down & (df["macd_hist"] < 0)
+        signal = signal.mask(short_mom & (signal == 0), -1)
+        strategy = strategy.mask(short_mom & (signal == -1), "momentum_short")
 
-    # --- Mean-reversion in quiet ranges ------------------------------------- #
+    # --- Mean-reversion in quiet ranges (long leg) -------------------------- #
     mr_long = sideways & (df["rsi"] < cfg.rsi_oversold) & (df["bb_pct_b"] < 0.05)
-    mr_short = sideways & (df["rsi"] > cfg.rsi_overbought) & (df["bb_pct_b"] > 0.95)
     signal = signal.mask(mr_long & (signal == 0), 1)
     strategy = strategy.mask(mr_long & (signal == 1), "mean_reversion_long")
-    signal = signal.mask(mr_short & (signal == 0), -1)
-    strategy = strategy.mask(mr_short & (signal == -1), "mean_reversion_short")
+
+    # --- Mean-reversion short leg (only if shorting is enabled) ------------- #
+    if allow_short:
+        mr_short = (
+            sideways & (df["rsi"] > cfg.rsi_overbought) & (df["bb_pct_b"] > 0.95)
+        )
+        signal = signal.mask(mr_short & (signal == 0), -1)
+        strategy = strategy.mask(mr_short & (signal == -1), "mean_reversion_short")
 
     # --- De-risk in high-volatility regimes --------------------------------- #
     scale = np.where(df["vol_state"] == VOL_HIGH, cfg.high_vol_size, 1.0)

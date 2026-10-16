@@ -97,6 +97,32 @@ percentile, momentum, mean-reversion, back-testing, quantitative finance.
 
 ---
 
+## Scope decisions (be ready to defend these in the viva)
+
+1. **Rule-based, not machine-learned.** Regime labelling is unsupervised
+   labelling by *economic definition* — trend (normalised fast/slow moving-average
+   spread, confirmed by MACD) crossed with volatility (percentile rank of
+   realised volatility). It is chosen deliberately for interpretability and
+   reproducibility, not as a substitute for a model. Success is therefore
+   measured by back-test performance and risk-adjusted metrics, not by
+   prediction accuracy. This is a methodology contribution, not an ML one.
+
+2. **Long-only (`allow_short: false`).** SEBI does not permit Indian retail
+   investors to short-sell for delivery, so a long/short daily strategy would
+   not be executable. Signals are `{0, +1}` — long, hold or exit. A short leg
+   exists behind a flag for completeness but is off by default.
+
+3. **Stock-relative volatility.** "High volatility" is a *percentile rank*
+   within a trailing window, so a single threshold applies across instruments
+   instead of an absolute value tuned to one price scale.
+
+4. **Data provenance and quality.** Free APIs provide no IPO/listing dates, so
+   those come from a hand-maintained reference file and are indicative only.
+   Daily returns above `max_abs_return` are masked as likely corporate-action
+   artifacts and the excluded count is disclosed — not silently dropped.
+
+---
+
 ## 1. Outline of chapters (to be written)
 
 1. **Introduction** — motivation, problem statement, objectives, scope,

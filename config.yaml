@@ -33,7 +33,12 @@ vol_high_pct: 0.70       # volatility percentile above this = high-vol regime
 # Signal operating points
 rsi_oversold: 30.0
 rsi_overbought: 70.0
-high_vol_size: 0.5       # position scaling applied in high-vol regimes
+high_vol_size: 0.5
+
+# Trading direction: false = long / hold / exit only (long-only), which is what
+# an Indian retail investor can actually execute, since SEBI does not permit
+# short-selling for delivery. Set true to re-enable short legs.
+allow_short: false       # position scaling applied in high-vol regimes
 
 # Back-test assumptions
 cost_bps: 5.0            # round-trip-ish cost charged per position change

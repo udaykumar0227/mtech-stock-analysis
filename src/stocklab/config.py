@@ -50,6 +50,11 @@ class Config:
     rsi_overbought: float = 70.0
     high_vol_size: float = 0.5
 
+    # Trading direction. Indian retail investors cannot short-sell for
+    # delivery (SEBI rules), so the default is long / hold / exit only.
+    # Set True to re-enable the short-momentum and short mean-reversion legs.
+    allow_short: bool = False
+
     # Back-test assumptions
     cost_bps: float = 5.0
     init_cash: float = 100_000.0
